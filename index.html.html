@@ -1158,6 +1158,27 @@
             refreshActionButtons();
         }
 
+        // ---------- 🔔 IN-APP NOTIFICATIONS (via our own /api/send-notification) ----------
+        // Calls OUR backend only — the Base API key must stay server-side.
+        // Failures are caught and ignored so the game never breaks.
+        async function notifyPlayer(title, message, target_path) {
+            if (!userAddress) return;
+            try {
+                await fetch('/api/send-notification', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        wallet_addresses: [userAddress],
+                        title,
+                        message,
+                        target_path,
+                    }),
+                });
+            } catch (err) {
+                console.warn('notification send skipped:', err);
+            }
+        }
+
         async function claimDailyReward() {
             playSound('flip');
             if (!userAddress) return setStatus('⚠️ Connect your wallet first', true);
@@ -1178,6 +1199,7 @@
                 onChainClaimedTodayCache = true;
                 setStatus(`✅ Daily reward claimed! Tx: ${tx.hash.slice(0, 10)}...`);
                 playSound('win');
+                notifyPlayer('Daily reward claimed ⬢', 'Your Base Memory daily reward landed on-chain. Come back tomorrow!', '/');
             } catch (e) {
                 const reverted = e?.reason || e?.shortMessage;
                 setStatus(reverted ? `❌ ${reverted}` : '❌ Transaction was cancelled', true);
@@ -1205,6 +1227,7 @@
                 await tx.wait();
                 setStatus(`✅ Best result (Level ${best.level}, score ${best.score}) saved on-chain! Tx: ${tx.hash.slice(0, 10)}...`);
                 playSound('win');
+                notifyPlayer('Score saved ⬢', `Level ${best.level} score of ${best.score} saved on Base. Nice work!`, '/');
             } catch (e) {
                 const reverted = e?.reason || e?.shortMessage;
                 setStatus(reverted ? `❌ ${reverted}` : '❌ Failed to save result', true);
